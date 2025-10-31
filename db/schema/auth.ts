@@ -1,5 +1,11 @@
 import { pgTable, text, timestamp, boolean } from "drizzle-orm/pg-core";
 
+export const userRole = {
+    CASHIER: "CASHIER",
+    ADMIN: "ADMIN",
+    STAKEHOLDER: "STAKEHOLDER"
+} as const;
+
 export const user = pgTable("user", {
     id: text("id").primaryKey(),
     name: text("name").notNull(),
@@ -8,6 +14,14 @@ export const user = pgTable("user", {
         .$defaultFn(() => false)
         .notNull(),
     image: text("image"),
+    role: text("role", { enum: ["CASHIER", "ADMIN", "STAKEHOLDER"] })
+        .notNull()
+        .$default(() => "CASHIER"),
+    phone: text("phone"),
+    isActive: boolean("is_active")
+        .notNull()
+        .$default(() => true),
+    lastLoginAt: timestamp("last_login_at"),
     createdAt: timestamp("created_at")
         .$defaultFn(() => /* @__PURE__ */ new Date())
         .notNull(),

@@ -1,179 +1,225 @@
 # Backend Structure Document
 
-This document outlines the backend architecture, hosting, and infrastructure for the **codeguide-starter** project. It uses plain language so anyone can understand how the backend is set up and how it supports the application.
+This document explains the backend setup for the Barbershop POS system built on the CodeGuide Fullstack Starter. It covers the architecture, database, APIs, hosting, infrastructure, security, monitoring, and more. Anyone can follow this guide to understand how the backend works without needing a deep technical background.
 
 ## 1. Backend Architecture
 
-- **Framework and Design Pattern**
-  - We use **Next.js API Routes** to handle all server-side logic. These routes live alongside the frontend code in the same repository, making development and deployment simpler.
-  - The backend follows a **layered pattern**:
-    1. **API Layer**: Receives requests (login, registration, data fetch).  
-    2. **Service Layer**: Contains the core business logic (user validation, password hashing).  
-    3. **Data Access Layer**: Talks to the database via a simple ORM (e.g., Prisma or TypeORM).
+We use a modern, modular approach to keep the backend easy to maintain, scale, and fast in production.
 
-- **Scalability**
-  - Stateless API routes can scale horizontally—new instances can spin up on demand.  
-  - We can add caching or a message queue (e.g., Redis or RabbitMQ) without changing the core code.
+**Key design patterns and frameworks**:
+- Server-side rendering and Server Actions: all business logic (checkout, commissions, cash sessions) runs on the server for security and consistency.
+- REST-style API routes: simple, predictable URLs for data access and mutations.
+- Role-based access control (RBAC): middleware and server checks ensure each user (Cashier, Admin, Stakeholder) only sees what they’re allowed to.
+- Containerization with Docker: consistent development and testing environments across the team.
 
-- **Maintainability**
-  - Code for each feature is grouped by route (authentication, dashboard).  
-  - A service layer separates complex logic from request handling.
-
-- **Performance**
-  - Lightweight Node.js handlers keep response times low.  
-  - Future use of database connection pooling and Redis for caching repeated queries.
+**How it supports core goals**:
+- **Scalability**: Each part of the API is stateless and can be scaled horizontally (more server instances) behind a load balancer.
+- **Maintainability**: Clear file structure (`app/api`, `lib`, `db`, `middleware`), plus TypeScript for end-to-end type safety, makes it easy to add features and fix bugs.
+- **Performance**: Server Actions eliminate extra network hops by running logic close to the database, and edge caching (via the hosting provider) speeds up static assets.
 
 ## 2. Database Management
 
-- **Database Choice**
-  - We recommend **PostgreSQL** for structured data and reliable transactions.  
-  - In-memory caching can be added later with **Redis** for session tokens or frequently read data.
+### Database technologies
+- Type: Relational (SQL)
+- System: PostgreSQL (version 14+)
+- ORM: Prisma for type-safe database access and migrations
 
-- **Data Storage and Access**
-  - Use an ORM like **Prisma** or **TypeORM** to map JavaScript/TypeScript objects to database tables.
-  - Connection pooling ensures efficient use of database connections under load.
-  - Migrations track schema changes over time, keeping development, staging, and production in sync.
+### Data storage and access
+- **Structured tables** represent users, services, orders, sessions, and commissions.
+- **Prisma Client** handles all queries and transactions, ensuring type safety.
+- **Connection pooling** is configured so database connections are reused rather than re-opened for each request.
+- **Migrations**: Prisma Migrate keeps track of schema changes in version control, making team workflows smooth.
 
-- **Data Practices**
-  - Passwords are never stored in plain text—they are salted and hashed with **bcrypt** before saving.
-  - All outgoing data is typed and validated to prevent malformed records.
+### Data management best practices
+- Back up the database nightly using automated scripts from the hosting provider.
+- Store all credentials (database URL, API keys) in environment variables, never in code.
+- Archive old sessions and logs periodically to keep tables lean and queries fast.
 
 ## 3. Database Schema
 
-### Human-Readable Format
+Below is the main schema in human-readable form, followed by SQL to create the tables if needed.
 
-- **Users**
-  - **id**: Unique identifier  
-  - **email**: User’s email address (unique)  
-  - **password_hash**: Securely hashed password  
-  - **created_at**: Account creation timestamp
+### Human-readable overview
+- **User**: id, name, email, password hash, role (Cashier/Admin/Stakeholder), created_at
+- **ServiceCategory**: id, name, description
+- **Service**: id, name, price, duration, category_id
+- **Order**: id, user_id, total_amount, created_at
+- **OrderItem**: id, order_id, service_id, employee_id, quantity, line_total
+- **Payment**: id, order_id, method (cash/card), amount, created_at
+- **CommissionRule**: id, priority (service/level/global), threshold, percentage
+- **Commission**: id, order_item_id, rule_id, amount
+- **CashSession**: id, user_id, opened_at, closed_at, starting_balance, ending_balance, variance
+- **CashLedger**: id, session_id, type (sale/open/close), amount, timestamp
 
-- **Sessions**
-  - **id**: Unique session record  
-  - **user_id**: Links to a user  
-  - **token**: Random string for authentication  
-  - **expires_at**: When the token stops working  
-  - **created_at**: When the session was created
-
-- **DashboardItems** *(optional for dynamic data)*
-  - **id**: Unique record  
-  - **title**: Item title  
-  - **content**: Item details  
-  - **created_at**: When the item was added
-
-### SQL Schema (PostgreSQL)
+### SQL schema (PostgreSQL)
 ```sql
--- Users table
-CREATE TABLE users (
+CREATE TABLE "User" (
   id SERIAL PRIMARY KEY,
-  email VARCHAR(255) UNIQUE NOT NULL,
-  password_hash VARCHAR(255) NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT now()
+  name TEXT NOT NULL,
+  email TEXT UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL,
+  role TEXT NOT NULL CHECK (role IN ('Cashier','Admin','Stakeholder')),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Sessions table
-CREATE TABLE sessions (
+CREATE TABLE ServiceCategory (
   id SERIAL PRIMARY KEY,
-  user_id INT REFERENCES users(id) ON DELETE CASCADE,
-  token VARCHAR(255) UNIQUE NOT NULL,
-  expires_at TIMESTAMPTZ NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT now()
+  name TEXT NOT NULL,
+  description TEXT
 );
 
--- Dashboard items table
-CREATE TABLE dashboard_items (
+CREATE TABLE Service (
   id SERIAL PRIMARY KEY,
-  title TEXT NOT NULL,
-  content TEXT,
-  created_at TIMESTAMPTZ DEFAULT now()
+  name TEXT NOT NULL,
+  price NUMERIC(10,2) NOT NULL,
+  duration INTEGER NOT NULL,
+  category_id INTEGER REFERENCES ServiceCategory(id)
+);
+
+CREATE TABLE "Order" (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER REFERENCES "User"(id),
+  total_amount NUMERIC(10,2) NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE OrderItem (
+  id SERIAL PRIMARY KEY,
+  order_id INTEGER REFERENCES "Order"(id) ON DELETE CASCADE,
+  service_id INTEGER REFERENCES Service(id),
+  employee_id INTEGER REFERENCES "User"(id),
+  quantity INTEGER NOT NULL,
+  line_total NUMERIC(10,2) NOT NULL
+);
+
+CREATE TABLE Payment (
+  id SERIAL PRIMARY KEY,
+  order_id INTEGER REFERENCES "Order"(id) ON DELETE CASCADE,
+  method TEXT NOT NULL,
+  amount NUMERIC(10,2) NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE CommissionRule (
+  id SERIAL PRIMARY KEY,
+  priority TEXT NOT NULL,
+  threshold NUMERIC(10,2),
+  percentage NUMERIC(5,2) NOT NULL
+);
+
+CREATE TABLE Commission (
+  id SERIAL PRIMARY KEY,
+  order_item_id INTEGER REFERENCES OrderItem(id) ON DELETE CASCADE,
+  rule_id INTEGER REFERENCES CommissionRule(id),
+  amount NUMERIC(10,2) NOT NULL
+);
+
+CREATE TABLE CashSession (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER REFERENCES "User"(id),
+  opened_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  closed_at TIMESTAMP WITH TIME ZONE,
+  starting_balance NUMERIC(10,2) NOT NULL,
+  ending_balance NUMERIC(10,2),
+  variance NUMERIC(10,2)
+);
+
+CREATE TABLE CashLedger (
+  id SERIAL PRIMARY KEY,
+  session_id INTEGER REFERENCES CashSession(id) ON DELETE CASCADE,
+  type TEXT NOT NULL,
+  amount NUMERIC(10,2) NOT NULL,
+  timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 ```  
 
 ## 4. API Design and Endpoints
 
-- **Approach**: We follow a **RESTful** style, grouping related endpoints under `/api` directories.
+We follow a REST-style design using Next.js API routes and supplement key operations with Server Actions.
 
-- **Key Endpoints**
-  - `POST /api/auth/register`  
-    • Accepts `{ email, password }`  
-    • Creates a new user and issues a session token  
-  - `POST /api/auth/login`  
-    • Accepts `{ email, password }`  
-    • Verifies credentials and returns a session token  
-  - `POST /api/auth/logout`  
-    • Invalidates the session token on the server  
-  - `GET /api/dashboard/data`  
-    • Requires a valid session  
-    • Returns user-specific data or dashboard items  
+**General approach**:
+- Read operations use GET requests, mutations use POST/PUT/DELETE.
+- Server Actions handle critical multi-step transactions in a single secure call.
 
-- **Communication**
-  - Frontend sends JSON requests; backend replies with JSON and appropriate HTTP status codes.  
-  - Protected routes check for a valid session token (in cookies or Authorization header).
+**Key endpoints**:
+
+- **/api/auth/**  
+  - Handles sign-in, sign-up, and token/session management (NextAuth or custom).
+
+- **/api/users**  
+  - GET /api/users: list all users (admin only).  
+  - POST /api/users: create a new user (admin only).  
+  - PUT /api/users/:id: update user details.  
+
+- **/api/services**  
+  - GET /api/services: list services.  
+  - POST /api/services: add a service (admin).  
+  - PUT /api/services/:id: edit a service.  
+  - DELETE /api/services/:id: remove a service.
+
+- **/api/orders**  
+  - POST /api/orders/checkout: Server Action to create order, items, payment, commissions in one transaction.  
+  - GET /api/orders/:id: fetch a single order and its items.
+
+- **/api/cash-sessions**  
+  - POST /api/cash-sessions/open: start a new session.  
+  - POST /api/cash-sessions/close: end session, calculate variance, log ledger entries.  
+  - GET /api/cash-sessions/:id/ledger: list ledger entries for a session.
+
+- **/api/reports/**  
+  - GET /api/reports/daily-sales?date=YYYY-MM-DD  
+  - GET /api/reports/employee-performance?start=...&end=...  
+  - GET /api/reports/commission-summary?start=...&end=...
 
 ## 5. Hosting Solutions
 
-- **Cloud Provider**:  
-  - **Vercel** (recommended) offers seamless Next.js deployments, auto-scaling, and built-in CDN.  
-  - Alternatively, **Netlify** or any Node.js-capable host will work.
+### Application hosting
+- Platform: Vercel (built-in support for Next.js)
+- Benefits: global CDN, automatic SSL, zero-config deployments, serverless scaling.
 
-- **Benefits**
-  - **Reliability**: Global servers and failover across regions.  
-  - **Scalability**: Auto-scale serverless functions based on traffic.  
-  - **Cost-Effectiveness**: Pay-per-use model means low cost for small projects.
+### Database hosting
+- Platform: AWS RDS for PostgreSQL
+- Benefits: automated backups, read replicas for scaling reads, point-in-time recovery.
+
+### Cost and reliability
+- Vercel offers a generous free tier, auto-scaling to handle traffic spikes.
+- AWS RDS provides pay-as-you-go pricing and 99.95% SLA, ensuring uptime.
 
 ## 6. Infrastructure Components
 
-- **Load Balancer**
-  - Provided by the hosting platform—distributes API requests across function instances.
+- **Load Balancer**: Vercel’s edge network automatically distributes traffic across serverless instances.
+- **CDN**: Vercel’s global caching of static assets and API responses for faster page loads worldwide.
+- **Caching**: Optional Redis cache (e.g., AWS ElastiCache) for heavy read operations like reports.
+- **Containerization**: Docker and docker-compose for local development, mirroring production dependencies.
 
-- **CDN (Content Delivery Network)**
-  - Vercel’s global edge network caches static assets (CSS, JS, images) for faster page loads.
-
-- **Caching**
-  - **Redis** (optional) for session storage or caching dashboard queries to reduce database load.
-
-- **Object Storage**
-  - For file uploads or backups, integrate with AWS S3 or similar services.
-
-- **Message Queue**
-  - In future, use **RabbitMQ** or **Kafka** for background tasks (e.g., email notifications).
+These pieces work together to deliver fast, reliable responses while keeping the system easy to operate.
 
 ## 7. Security Measures
 
-- **Authentication & Authorization**
-  - Passwords hashed with **bcrypt** and salted.  
-  - Session tokens stored in secure, HttpOnly cookies or Authorization headers.  
-  - Protected endpoints verify tokens before proceeding.
-
-- **Data Encryption**
-  - **HTTPS/TLS** encrypts data in transit.  
-  - Database connections use SSL to encrypt data between the app and the database.
-
-- **Input Validation**
-  - Every incoming request is validated (e.g., valid email format, password length) to prevent SQL injection or other attacks.
-
-- **Web Security Best Practices**
-  - Enable **CORS** policies to limit allowed origins.  
-  - Use **CSRF tokens** or same-site cookies to prevent cross-site requests.  
-  - Set secure headers with **Helmet** or a similar middleware.
+- **Authentication**: NextAuth (or custom) with encrypted JWT cookies and secure session storage.
+- **Authorization**: Middleware checks on every request plus in-function role checks within Server Actions.
+- **Encryption**: HTTPS/TLS for all traffic; data encryption at rest on RDS.
+- **Environment Isolation**: Separate credentials for development, staging, and production stored in CI/CD secrets.
+- **Input Validation**: All user inputs are validated and sanitized to prevent SQL injection and XSS.
+- **Regular Audits**: Dependency vulnerability scanning and periodic security reviews.
 
 ## 8. Monitoring and Maintenance
 
-- **Performance Monitoring**
-  - Integrate **Sentry** or **LogRocket** for real-time crash reporting and performance tracing.  
-  - Use Vercel’s built-in analytics to track request latencies and error rates.
-
-- **Logging**
-  - Structured logs (JSON) for all API requests and errors, shipped to a log management service like **Datadog** or **Logflare**.
-
-- **Health Checks**
-  - Define a `/health` endpoint that returns a 200 status if the service is up and the database is reachable.
-
-- **Maintenance Strategies**
-  - Automated migrations run on deploy to keep the database schema up to date.  
-  - Scheduled dependency audits and security scans (e.g., `npm audit`).
-  - Regular backups of the database (daily or weekly depending on usage).
+- **Error tracking**: Sentry captures and alerts on backend exceptions.
+- **Performance monitoring**: Vercel Analytics for response times; AWS CloudWatch for database metrics.
+- **Logs**: Centralized logging (e.g., Logflare or AWS CloudWatch Logs) to trace API calls.
+- **Database backups**: Automated nightly snapshots in RDS.
+- **Health checks**: Scheduled synthetic requests to key endpoints, alerting on failures.
+- **CI/CD**: Automated testing and migration runs on every push, ensuring code and schema stay in sync.
 
 ## 9. Conclusion and Overall Backend Summary
 
-The backend for **codeguide-starter** is built on Next.js API Routes and Node.js, paired with PostgreSQL for data and optional Redis for caching. It follows a clear layered architecture that keeps code easy to maintain and extend. With RESTful endpoints for authentication and data, secure practices like password hashing and HTTPS, and hosting on Vercel for scalability and global performance, this setup meets the project’s goals for a fast, secure, and developer-friendly foundation. Future enhancements—such as background job queues, advanced monitoring, or richer data models—can be added without disrupting the core structure.
+Our backend is built on a proven, full-stack foundation that:
+- Uses Next.js API routes and Server Actions for secure, atomic business operations.
+- Relies on PostgreSQL and Prisma for robust, type-safe data handling.
+- Hosts on Vercel and AWS RDS to deliver global performance and high availability.
+- Incorporates load balancing, caching, and CDN to optimize user experience.
+- Enforces strong security through authentication, authorization, and encryption.
+- Provides monitoring and maintenance practices that keep the system healthy and up to date.
+
+This architecture meets the needs of Cashiers, Admins, and Stakeholders alike, offering a scalable, maintainable, and secure backend for your Barbershop POS system.
