@@ -1,90 +1,110 @@
-# Tech Stack Document
+# Tech Stack Document for Barbershop POS
 
-This document explains the key technologies chosen for the **codeguide-starter** project. It’s written in everyday language so anyone—technical or not—can understand why each tool was picked and how it supports the application.
+This document explains in everyday language the technology choices behind the Barbershop Point of Sale (POS) application. It covers the frontend, backend, infrastructure, third-party services, security and performance measures, and a final summary of how these choices support the project’s goals.
 
 ## 1. Frontend Technologies
-The frontend is everything the user sees and interacts with. For this project, we’ve used:
 
-- **Next.js (App Router)**
-  - A React framework that makes page routing, server-side rendering, and API routes very simple.
-  - Enhances user experience by pre-rendering pages on the server or at build time, leading to faster initial load.
-- **React 18**
-  - The underlying library for building user interfaces with reusable components.
-  - Provides a smooth, interactive experience thanks to its virtual DOM and modern hooks.
+We chose these tools to build a fast, responsive, and easy-to-maintain user interface for all user roles (Cashier, Admin, Stakeholder).
+
+- **Next.js 15 (App Router with Turbopack)**
+  - Enables server-side rendering and static pages for speed.
+  - Supports Server Actions, letting us run secure business logic on the server.
 - **TypeScript**
-  - A superset of JavaScript that adds types (labels for data).
-  - Helps catch errors early during development and makes the code easier to maintain.
-- **CSS (globals.css & theme.css)**
-  - **globals.css** applies base styles (fonts, colors, resets) across the entire app.
-  - **dashboard/theme.css** defines the look and feel specific to the dashboard area.
-  - This separation keeps styles organized and avoids accidental style conflicts.
+  - Adds type safety so code mistakes are caught early.
+  - Ensures consistent data handling (e.g., orders and payments) from UI to database.
+- **shadcn/ui**
+  - A collection of pre-built, customizable UI components (buttons, cards, tables).
+  - Speeds up development of service grids, data tables, and KPI cards.
+- **Tailwind CSS v4**
+  - Utility-first styling framework for quick, consistent design.
+  - Makes it easy to apply brand colors, spacing, and responsive layouts.
 
-By combining these tools, we have a clear structure (Next.js folders for pages and layouts), safer code (TypeScript), and flexible styling with vanilla CSS.
+These technologies work together to give users a smooth, interactive experience whether they’re ringing up services, managing data, or reviewing reports.
 
 ## 2. Backend Technologies
-The backend handles data, user accounts, and the logic behind the scenes. Our choices here are:
 
-- **Next.js API Routes**
-  - Allows us to write server-side code (`route.ts` files) alongside our frontend in the same project.
-  - Runs on Node.js, so we can handle requests like sign-up, sign-in, and data fetching in one place.
-- **Node.js Runtime**
-  - The JavaScript environment on the server that executes our API routes.
-- **bcrypt** (npm package)
-  - A library for hashing passwords securely before storing them.
-  - Ensures that even if someone got access to our data, raw passwords aren’t visible.
-- **(Optional) NextAuth.js or JWT**
-  - While this starter kit shows a custom authentication flow, it can easily integrate services like NextAuth.js for email-based login or JWT (JSON Web Tokens) for stateless sessions.
+Our backend handles data storage, secure operations, and business rules.
 
-These components work together to receive user credentials, verify or store them securely, manage sessions or tokens, and deliver protected data back to the frontend.
+- **Next.js API Routes & Server Actions**
+  - API Routes for data fetching (e.g., loading services, reports).
+  - Server Actions for critical operations (e.g., creating an order, closing a cash session) that run only on the server.
+- **Authentication: NextAuth**
+  - Manages user sign-up, sign-in, sessions, and role-based access.
+  - Protects routes so only the right user roles see the correct interface.
+- **Database: PostgreSQL**
+  - Relational database that stores users, services, orders, payments, commissions, and session logs.
+  - Reliable for transactions and reporting queries.
+- **ORM: Prisma**
+  - Generates a type-safe database client from our schema.
+  - Simplifies migrations, queries, and ensures code and database stay in sync.
+
+Together, these components ensure data is stored reliably, operations are secure, and complex rules (commissions, price overrides, cash variances) are enforced correctly.
 
 ## 3. Infrastructure and Deployment
-Infrastructure covers where and how we host the app, as well as how changes get delivered:
 
-- **Git & GitHub**
-  - Version control system (Git) and remote hosting (GitHub) keep track of all code changes and allow team collaboration.
-- **Vercel (or Netlify)**
-  - A popular hosting service optimized for Next.js, with one-click deployments and global content delivery.
-  - Automatically rebuilds and deploys the site whenever code is pushed to the main branch.
-- **GitHub Actions (CI/CD)**
-  - Automates tasks like linting (ESLint), formatting (Prettier), and running any tests you add.
-  - Ensures that only clean, tested code goes live.
+We set up a reliable and scalable environment for development and production.
 
-Together, these tools provide a reliable, scalable setup where every code change is tested and deployed quickly, with minimal manual work.
+- **Version Control: Git & GitHub**
+  - Tracks all code changes and supports team collaboration with branches and pull requests.
+- **Containerization: Docker & docker-compose**
+  - Encapsulates the app and database in containers for consistent setup across machines.
+  - One command to spin up the full stack locally (app + PostgreSQL).
+- **CI/CD: GitHub Actions**
+  - Runs tests and database migrations automatically on each commit.
+  - Deploys to production after successful checks.
+- **Hosting Platform: Vercel (or similar)**
+  - Automatically builds and deploys the Next.js app from GitHub.
+  - Built-in support for environment variables and preview environments.
+
+This infrastructure ensures every developer works in the same environment, catches errors early, and deploys updates smoothly.
 
 ## 4. Third-Party Integrations
-While this starter kit is minimal by design, it already includes or can easily add:
 
-- **bcrypt**
-  - For secure password hashing (included as an npm dependency).
-- **NextAuth.js** (optional)
-  - A full-featured authentication library supporting email/password, OAuth, and more.
-- **Sentry or LogRocket** (optional)
-  - For real-time error tracking and performance monitoring in production.
+Our application leverages a few external services to extend functionality without reinventing the wheel.
 
-These integrations help extend the app’s capabilities without building every feature from scratch.
+- **NextAuth**
+  - Handles authentication flows (credential provider, session management) securely.
+- **Docker Hub (or private registry)**
+  - Stores and distributes Docker images for the app and database.
 
-## 5. Security and Performance Considerations
-We’ve baked in several measures to keep users safe and the app running smoothly:
+Currently, there are no payment gateway integrations since payments are handled in cash. Future integrations (e.g., Stripe) can be added as needed.
 
-Security:
-- Passwords are never stored in plain text—bcrypt hashes them with a random salt.
-- API routes can implement CSRF protection and input validation to block malicious requests.
-- Session tokens or cookies are marked secure and HttpOnly to prevent theft via JavaScript.
+## 5. Security, Performance, and Quality Assurance
 
-Performance:
-- Server-side rendering (SSR) and static site generation (SSG) in Next.js deliver pages faster.
-- Code splitting and lazy-loaded components ensure users only download what they need.
-- Global CSS and theme files are small and cached by the browser for quick repeat visits.
+We’ve built in multiple layers of protection, speed enhancements, and quality checks.
 
-These strategies work together to give users a fast, secure experience every time.
+Security Measures:
+- **Role-Based Access Control (RBAC)**
+  - Next.js Middleware checks user roles on each route.
+  - Every Server Action re-validates permissions before running.
+- **Environment Variables**
+  - Secrets (DATABASE_URL, NextAuth keys) are never in code—kept safe in environment settings.
+- **HTTPS Everywhere**
+  - All communication encrypted to protect user data.
+
+Performance Optimizations:
+- **Turbopack**
+  - Blazing-fast builds and hot-reloading during development.
+- **Server-Side Rendering & Caching**
+  - Pages and data are pre-rendered or cached for instant load times.
+- **Selective Data Fetching**
+  - Only the necessary data is requested, reducing load on the server.
+
+Quality Assurance:
+- **Automated Testing with Vitest**
+  - Unit tests for commission calculations, cash variance logic, and price overrides.
+  - Ensures business rules work as expected before deployment.
+- **Comprehensive Error Handling**
+  - User-friendly notifications (toasts) inform users of successes or failures.
 
 ## 6. Conclusion and Overall Tech Stack Summary
-In building **codeguide-starter**, we chose technologies that:
 
-- Align with modern web standards (Next.js, React, TypeScript).
-- Provide a clear, file-based project structure for rapid onboarding.
-- Offer built-in support for server-side rendering, API routes, and static assets.
-- Emphasize security through password hashing, session management, and safe defaults.
-- Enable easy scaling and future enhancements via modular code and optional integrations.
+Our Barbershop POS tech stack was chosen to support three distinct user roles with clarity, speed, and security in mind:
 
-This stack strikes a balance between simplicity for newcomers and flexibility for experienced teams. It accelerates development of a secure authentication flow and a polished dashboard, while leaving room to plug in databases, test suites, and advanced features as the project grows.
+- **Frontend:** Next.js 15, TypeScript, shadcn/ui, Tailwind CSS for a fast, interactive UI.
+- **Backend:** Next.js API Routes & Server Actions, NextAuth, PostgreSQL, Prisma for secure, type-safe data operations.
+- **Infrastructure:** GitHub, Docker, GitHub Actions, and Vercel for consistent development and reliable deployments.
+- **Integrations:** NextAuth for authentication and Docker Hub for container distribution.
+- **Security & Performance:** Role checks, encrypted communication, caching, fast builds, and automated tests ensure a robust user experience.
+
+This combination aligns perfectly with the goals of a modern, data-intensive POS system: quick development, ease of upkeep, and a seamless experience for Cashiers, Admins, and Stakeholders alike.

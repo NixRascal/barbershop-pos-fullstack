@@ -1,117 +1,89 @@
-# Project Requirements Document: codeguide-starter
-
----
+# Barbershop POS System – Project Requirements Document
 
 ## 1. Project Overview
 
-The **codeguide-starter** project is a boilerplate web application that provides a ready-made foundation for any web project requiring secure user authentication and a post-login dashboard. It sets up the common building blocks—sign-up and sign-in pages, API routes to handle registration and login, and a simple dashboard interface driven by static data. By delivering this skeleton, it accelerates development time and ensures best practices are in place from day one.
+This web application is a modern Point-of-Sale (POS) system tailored for a barbershop. It provides cashiers with an intuitive interface to select services, assemble orders, assign staff, and complete checkouts. Administrators can manage core data like services, categories, and employee profiles. Stakeholders get a high-level dashboard showing daily sales and cash session summaries.
 
-This starter kit is being built to solve the friction developers face when setting up repeated common tasks: credential handling, session management, page routing, and theming. Key objectives include: 1) delivering a fully working authentication flow (registration & login), 2) providing a gated dashboard area upon successful login, 3) establishing a clear, maintainable project structure using Next.js and TypeScript, and 4) demonstrating a clean theming approach with global and section-specific CSS. Success is measured by having an end-to-end login journey in under 200 lines of code and zero runtime type errors.
-
----
+Built on a full-stack starter, this product solves the pain of manual logbooks and fragmented spreadsheets. It centralizes transactions and business data in real time, reduces errors in checkout and reporting, and empowers decision-makers with up-to-date insights. Success will be measured by timely, accurate order processing, smooth master-data management, and clear, reliable analytics for stakeholders.
 
 ## 2. In-Scope vs. Out-of-Scope
 
-### In-Scope (Version 1)
-- User registration (sign-up) form with validation
-- User login (sign-in) form with validation
-- Next.js API routes under `/api/auth/route.ts` handling:
-  - Credential validation
-  - Password hashing (e.g., bcrypt)
-  - Session creation or JWT issuance
-- Protected dashboard pages under `/dashboard`:
-  - `layout.tsx` wrapping dashboard content
-  - `page.tsx` rendering static data from `data.json`
-- Global application layout in `/app/layout.tsx`
-- Basic styling via `globals.css` and `dashboard/theme.css`
-- TypeScript strict mode enabled
+**In-Scope (MVP Features)**
+- User authentication & role-based access (Cashier, Admin, Stakeholder)
+- Cashier POS interface:
+  - Service selection grid
+  - Multi-item cart and employee assignment
+  - Open/close cash session with variance calculation
+  - Atomic checkout (create Order, OrderItems, Payment)
+- Admin management panel:
+  - CRUD for Services, Service Categories, Employees
+  - User account overview and role assignment
+- Stakeholder dashboard:
+  - Daily sales totals
+  - Number of orders processed
+  - Cash session summaries
+- Data persistence in PostgreSQL via Prisma ORM
+- Containerized development environment (Docker + docker-compose)
 
-### Out-of-Scope (Later Phases)
-- Integration with a real database (PostgreSQL, MongoDB, etc.)
-- Advanced authentication flows (password reset, email verification, MFA)
-- Role-based access control (RBAC)
-- Multi-tenant or white-label theming
-- Unit, integration, or end-to-end testing suites
-- CI/CD pipeline and production deployment scripts
-
----
+**Out-of-Scope (Later Phases)**
+- Multi-method payment support (cards, digital wallets)
+- Complex commission engine and rule management
+- Price-override workflows with approval routing
+- Advanced visual charts and interactive graphs
+- Mobile or offline modes
+- Third-party integrations (accounting, booking platforms)
 
 ## 3. User Flow
 
-A new visitor lands on the root URL and sees a welcome page with options to **Sign Up** or **Sign In**. If they choose Sign Up, they fill in their email, password, and hit “Create Account.” The form submits to `/api/auth/route.ts`, which hashes the password, creates a new user session or token, and redirects them to the dashboard. If any input is invalid, an inline error message explains the issue (e.g., “Password too short”).
+When a Cashier arrives, they log in via the sign-in page. They land on a role-specific dashboard showing a grid of available services. Clicking on a service card adds it to a cart sidebar, where they can adjust quantities and assign an employee to each item. When ready, the Cashier clicks “Checkout,” and a server-side transaction records the order and payment, then resets the cart for the next customer.
 
-Once authenticated, the user is taken to the `/dashboard` route. Here they see a sidebar or header defined by `dashboard/layout.tsx`, and the main panel pulls in static data from `data.json`. They can log out (if that control is present), but otherwise their entire session is managed by server-side cookies or tokens. Returning users go directly to Sign In, submit credentials, and upon success they land back on `/dashboard`. Any unauthorized access to `/dashboard` redirects back to Sign In.
-
----
+An Admin logs in and sees a sidebar with links for Master Data. Selecting “Services” opens a table view where they can add, edit, or delete service entries. Similar pages exist for service categories and employees. A Stakeholder logs in to a read-only dashboard that displays KPI cards for daily sales, order count, and cash session performance. They can revisit past days to track trends.
 
 ## 4. Core Features
 
-- **Sign-Up Page (`/app/sign-up/page.tsx`)**: Form fields for email & password, client-side validation, POST to `/api/auth`.
-- **Sign-In Page (`/app/sign-in/page.tsx`)**: Form fields for email & password, client-side validation, POST to `/api/auth`.
-- **Authentication API (`/app/api/auth/route.ts`)**: Handles both registration and login based on HTTP method, integrates password hashing (bcrypt) and session or JWT logic.
-- **Global Layout (`/app/layout.tsx` + `globals.css`)**: Shared header, footer, and CSS resets across all pages.
-- **Dashboard Layout (`/app/dashboard/layout.tsx` + `dashboard/theme.css`)**: Sidebar or top nav for authenticated flows, section-specific styling.
-- **Dashboard Page (`/app/dashboard/page.tsx`)**: Reads `data.json`, renders it as cards or tables.
-- **Static Data Source (`/app/dashboard/data.json`)**: Example dataset to demo dynamic rendering.
-- **TypeScript Configuration**: `tsconfig.json` with strict mode and path aliases (if any).
-
----
+- **Authentication & RBAC**: Secure sign-up, sign-in, session management. Middleware enforces role checks on protected routes.
+- **Cashier POS Interface**: Service grid, real-time cart, employee assignment, open/close cash session, atomic checkout server action.
+- **Admin Panel**: Data tables for Services, Categories, and Employees; inline editing; CRUD forms; bulk import/export placeholders.
+- **Stakeholder Dashboard**: Read-only KPI cards for sales, orders, and cash sessions; date filters.
+- **Database Schema**: Tables for User, Service, ServiceCategory, Employee, Order, OrderItem, CashSession, Payment.
+- **API Layer**: Next.js API Routes for data fetches; Server Actions for secure data mutations.
 
 ## 5. Tech Stack & Tools
 
-- **Framework**: Next.js (App Router) for file-based routing, SSR/SSG, and API routes.
-- **Language**: TypeScript for type safety.
-- **UI Library**: React 18 for component-based UI.
-- **Styling**: Plain CSS via `globals.css` (global reset) and `theme.css` (sectional styling). Can easily migrate to CSS Modules or Tailwind in the future.
-- **Backend**: Node.js runtime provided by Next.js API routes.
-- **Password Hashing**: bcrypt (npm package).
-- **Session/JWT**: NextAuth.js or custom JWT logic (to be decided in implementation).
-- **IDE & Dev Tools**: VS Code with ESLint, Prettier extensions. Optionally, Cursor.ai for AI-assisted coding.
-
----
+- Frontend: Next.js 15 (App Router with Turbopack), React, TypeScript
+- UI Components: shadcn/ui, Tailwind CSS v4
+- Authentication: NextAuth (Credentials provider)
+- Backend Logic: Next.js Server Actions & API Routes
+- Database: PostgreSQL (containerized via Docker)
+- ORM: Prisma (type-safe schema and migrations)
+- Containerization: Docker & docker-compose
+- Testing (future): Vitest for unit tests
+- IDE Support: VS Code, recommending extensions like Prisma, Tailwind CSS IntelliSense
 
 ## 6. Non-Functional Requirements
 
-- **Performance**: Initial page load under 200 ms on a standard broadband connection. API responses under 300 ms.
-- **Security**:
-  - HTTPS only in production.
-  - Proper CORS, CSRF protection for API routes.
-  - Secure password storage (bcrypt with salt).
-  - No credentials or secrets checked into version control.
-- **Scalability**: Structure must support adding database integration, caching layers, and advanced auth flows without rewiring core app.
-- **Usability**: Forms should give real-time feedback on invalid input. Layout must be responsive (mobile > 320 px).
-- **Maintainability**: Code must adhere to TypeScript strict mode. Linting & formatting enforced by ESLint/Prettier.
-
----
+- **Performance**: POS page renders in &lt;200ms; cart updates &lt;100ms.
+- **Scalability**: Supports at least 10 concurrent cashier sessions without lag.
+- **Security**: HTTPS only; secure, HTTP-only cookies; environment variables for secrets; least-privilege DB roles.
+- **Usability**: Responsive design for tablets and desktops; clear error messages and toasts for feedback.
+- **Compliance**: GDPR-ready for user data; audit logs for financial transactions.
 
 ## 7. Constraints & Assumptions
 
-- **No Database**: Dashboard uses only `data.json`; real database integration is deferred.
-- **Node Version**: Requires Node.js >= 14.
-- **Next.js Version**: Built on Next.js 13+ App Router.
-- **Authentication**: Assumes availability of bcrypt or NextAuth.js at implementation time.
-- **Hosting**: Targets serverless or Node.js-capable hosting (e.g., Vercel, Netlify).
-- **Browser Support**: Modern evergreen browsers; no IE11 support required.
-
----
+- Reliable internet connection; no offline mode.
+- PostgreSQL 13+ available via Docker; Prisma supports migrations.
+- NextAuth Credentials provider suffices for internal users.
+- All service names and employee IDs are unique.
+- Data volume is moderate (hundreds of orders per day) for MVP.
 
 ## 8. Known Issues & Potential Pitfalls
 
-- **Static Data Limitation**: `data.json` is only for demo. A real API or database will be needed to avoid stale data.
-  *Mitigation*: Define a clear interface for data fetching so swapping to a live endpoint is trivial.
-
-- **Global CSS Conflicts**: Using global styles can lead to unintended overrides.
-  *Mitigation*: Plan to migrate to CSS Modules or utility-first CSS in Phase 2.
-
-- **API Route Ambiguity**: Single `/api/auth/route.ts` handling both sign-up and sign-in could get complex.
-  *Mitigation*: Clearly branch on HTTP method (`POST /register` vs. `POST /login`) or split into separate files.
-
-- **Lack of Testing**: No test suite means regressions can slip in.
-  *Mitigation*: Build a minimal Jest + React Testing Library setup in an early iteration.
-
-- **Error Handling Gaps**: Client and server must handle edge cases (network failures, malformed input).
-  *Mitigation*: Define a standard error response schema and show user-friendly messages.
+- **Concurrent Transactions**: Simultaneous checkouts may conflict—use DB transactions and row-level locking.
+- **Timezone Handling**: Closing cash sessions across midnight may skew daily summaries—standardize on a single timezone.
+- **API Rate Limits**: Serverless function cold starts—consider caching strategies or moving heavy logic to the server.
+- **Data Migrations**: Schema changes require careful migration scripts—use Prisma migrate dev in CI.
+- **Role-Check Gaps**: Always reverify roles in Server Actions, not just in middleware, to avoid privilege escalation.
 
 ---
 
-This PRD should serve as the single source of truth for the AI model or any developer generating the next set of technical documents: Tech Stack Doc, Frontend Guidelines, Backend Structure, App Flow, File Structure, and IDE Rules. It contains all functional and non-functional requirements with no ambiguity, enabling seamless downstream development.
+This document is the definitive blueprint for the Barbershop POS MVP. Every subsequent technical design (frontend guidelines, backend structure, file organization) should reference these requirements to ensure consistency and completeness.
